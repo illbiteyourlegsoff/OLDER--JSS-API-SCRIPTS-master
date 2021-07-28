@@ -8,6 +8,9 @@
 #  The Sites and departments must already be created and match
 #
 #   Trey Howell 2015
+#
+#####
+###Modified to work with Big Sur. xpath requires new attributes July 2021 -- Trey Howell
 #########################################
 
 
@@ -22,6 +25,10 @@ apiUser="username"
 #######API PASSWORD for above account
 apiPass="password"
 
+###Having issues with base64 encoded creds. Will work on this. 
+encodedCredentials=$( printf "$apiUser:$apiPass" | /usr/bin/iconv -t ISO-8859-1 | /usr/bin/base64 -i - )
+
+
 ##################################################################################################
 #
 # Do not modify below this line
@@ -32,7 +39,7 @@ apiPass="password"
 ###
 #####Serial number of computer
 
-####sn="C17J7RJTTTY3"   <---- if wanting to hardcode a serial number
+#sn="FVFYN33FHV2H"  ###<---- if wanting to hardcode a serial number
 sn=`ioreg -l |grep IOPlatformSerialNumber | awk '{print $4}' | cut -d \" -f 2`
 
 
@@ -42,8 +49,9 @@ sn=`ioreg -l |grep IOPlatformSerialNumber | awk '{print $4}' | cut -d \" -f 2`
 ##3
 
 ######Queries for Site of Computer
-siteName=$(curl -k -s -u $apiUser:$apiPass $apiURL/JSSResource/computers/serialnumber/$sn | xpath /computer/general/site/name[1] | sed 's,<name>,,;s,</name>,,')
-
+#echo "curl -k -s -u $apiUser:$apiPass $apiURL/JSSResource/computers/serialnumber/$sn | xpath /computer/general/site/name[1] | sed 's,<name>,,;s,</name>,,'"
+siteName=$(curl -k -s -u $apiUser:$apiPass $apiURL/JSSResource/computers/serialnumber/$sn | xpath -e /computer/general/site/name | sed 's,<name>,,;s,</name>,,')
+echo $siteName 
 
 ###########Queries for old Department NOT NEEDED in this version of Script
 #oldepName=$(curl -k -s -u $apiUser:$apiPass $apiURL/JSSResource/computers/serialnumber/$sn | xpath /computer/location/department | sed 's,<department>,,;s,</department>,,') 
@@ -51,12 +59,12 @@ siteName=$(curl -k -s -u $apiUser:$apiPass $apiURL/JSSResource/computers/serialn
 
 
 ######Creates XML file that will change Department
-cat <<EOT > /tmp/sites.xml
-<?xml version="1.0" encoding="UTF-8"?><computer><location><department>$siteName</department></location></computer>
+#cat <<EOT > /tmp/sites.xml
+#<?xml version="1.0" encoding="UTF-8"?><computer><location><department>$siteName</department></location></computer>
 
-EOT
+#EOT
 
-
+echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?><computer><location><department>$siteName</department></location></computer>" > /tmp/sites.xml
 ###This uploads our XML file to write new Department based off of site
 curl -k -s -u $apiUser:$apiPass $apiURL/JSSResource/computers/serialnumber/$sn -T /tmp/sites.xml -X PUT
 
@@ -66,4 +74,4 @@ curl -k -s -u $apiUser:$apiPass $apiURL/JSSResource/computers/serialnumber/$sn -
 sleep 5
 
 ######remove xml file
-rm /tmp/sites.xml
+rm -f /tmp/sites.xml
